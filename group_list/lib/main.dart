@@ -64,14 +64,17 @@ class _AccountListViewState extends State<AccountListView> {
     _data.clear();
     for (int i = 0; i < 3; i++) {
       _data.add(AccountData()
+        ..isExpanded = false
         ..name = tempData[Random.secure().nextInt(tempData.length)]);
     }
 
     for (int i = 0; i < 5; i++) {
       _data.add(GroupData()
+        ..isExpanded = false
         ..name = tempData[Random.secure().nextInt(tempData.length)]);
       for (int i = 0; i < 3; i++) {
         _data.add(AccountData()
+          ..isExpanded = false
           ..name = tempData[Random.secure().nextInt(tempData.length)]);
       }
     }
@@ -94,65 +97,122 @@ class _AccountListViewState extends State<AccountListView> {
             return null;
           }
           var itemData = _data[index];
-          return Dismissible(
-            key: ValueKey(index),
-            direction: DismissDirection.horizontal,
-            child: Column(
-              children: <Widget>[
-                itemData is GroupData
-                    ? ListTile(
-                        title: Text(itemData.name,
-                            style: TextStyle(color: Colors.teal)))
-                    : ListTile(
-                        title: ListBody(
-                        children: <Widget>[Text(itemData.name)],
-                      )),
-                Divider(height: 0.0),
-              ],
-            ),
-            background: Container(
-              color: themeData.primaryColor,
-              child: Row(
-                children: <Widget>[
-                  FlatButton(
-                    padding: EdgeInsets.only(right: 20.0),
-                    child: Text(
-                      '编辑',
-                      style: TextStyle(color: Colors.white),
+          return ExpansionPanelList(
+            children: <ExpansionPanel>[
+              ExpansionPanel(
+                headerBuilder: (BuildContext context, bool isExpanded) {
+                  return Dismissible(
+                    key: ValueKey(index),
+                    direction: DismissDirection.horizontal,
+                    child: ListTile(
+                      title: Text(itemData.name),
+                    ),
+                    background: Container(
+                      color: themeData.primaryColor,
+                      child: Row(
+                        children: <Widget>[
+                          FlatButton(
+                            padding: EdgeInsets.only(right: 20.0),
+                            child: Text(
+                              '编辑',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    secondaryBackground: Container(
+                      color: Colors.red,
+                      child: Row(
+                        textDirection: TextDirection.rtl,
+                        children: <Widget>[
+                          FlatButton(
+                            padding: EdgeInsets.only(right: 20.0),
+                            child: Text(
+                              '删除',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    confirmDismiss: (DismissDirection direction) {
+                      if (DismissDirection.endToStart == direction) {
+                        return Future.value(true);
+                      } else {
+                        return Future.value(false);
+                      }
+                    },
+                    onDismissed: (DismissDirection direction) async {
+                      var viewData = _data.removeAt(index);
+                      Scaffold.of(context).showSnackBar(SnackBar(
+                        content: Text('删除了：$viewData'),
+                      ));
+                      await loadData();
+                    },
+                  );
+                },
+                body: Dismissible(
+                  key: ValueKey(index),
+                  direction: DismissDirection.horizontal,
+                  child: ListTile(
+                    title: Text(itemData.name + ':body'),
+                    subtitle:
+                        Text('To delete this panel, tap the trash can icon'),
+                  ),
+                  background: Container(
+                    color: themeData.primaryColor,
+                    child: Row(
+                      children: <Widget>[
+                        FlatButton(
+                          padding: EdgeInsets.only(right: 20.0),
+                          child: Text(
+                            '编辑',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            secondaryBackground: Container(
-              color: Colors.red,
-              child: Row(
-                textDirection: TextDirection.rtl,
-                children: <Widget>[
-                  FlatButton(
-                    padding: EdgeInsets.only(right: 20.0),
-                    child: Text(
-                      '删除',
-                      textAlign: TextAlign.right,
-                      style: TextStyle(color: Colors.white),
+                  secondaryBackground: Container(
+                    color: Colors.red,
+                    child: Row(
+                      textDirection: TextDirection.rtl,
+                      children: <Widget>[
+                        FlatButton(
+                          padding: EdgeInsets.only(right: 20.0),
+                          child: Text(
+                            '删除',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            confirmDismiss: (DismissDirection direction) {
-              if (DismissDirection.endToStart == direction) {
-                return Future.value(true);
-              } else {
-                return Future.value(false);
-              }
-            },
-            onDismissed: (DismissDirection direction) async {
-              var viewData = _data.removeAt(index);
-              Scaffold.of(context).showSnackBar(SnackBar(
-                content: Text('删除了：$viewData'),
-              ));
-              await loadData();
+                  confirmDismiss: (DismissDirection direction) {
+                    if (DismissDirection.endToStart == direction) {
+                      return Future.value(true);
+                    } else {
+                      return Future.value(false);
+                    }
+                  },
+                  onDismissed: (DismissDirection direction) async {
+                    var viewData = _data.removeAt(index);
+                    Scaffold.of(context).showSnackBar(SnackBar(
+                      content: Text('删除了：$viewData'),
+                    ));
+                    await loadData();
+                  },
+                ),
+                isExpanded: itemData.isExpanded,
+              )
+            ],
+            expansionCallback: (panelIndex, isExpand) {
+              setState(() {
+                _data[index].isExpanded = !isExpand;
+              });
             },
           );
         },
@@ -162,7 +222,13 @@ class _AccountListViewState extends State<AccountListView> {
 }
 
 abstract class ItemData {
+  ItemData({
+    this.name,
+    this.isExpanded,
+  });
+
   String name;
+  bool isExpanded = false;
 }
 
 class GroupData extends ItemData {}
