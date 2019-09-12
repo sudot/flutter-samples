@@ -54,29 +54,29 @@ class AccountListView extends StatefulWidget {
 /// 账号列表视图状态
 class _AccountListViewState extends State<AccountListView> {
   /// 账户列表数据
-  List<ItemData> _data = [];
+  List<GroupData> _data = [];
 
   /// 加载数据
   ///
   /// 先将未分组的账户加载,并放在最前面
   /// 然后加载所有的分组,并将分组下的账号加载出来
-  Future<List<ItemData>> loadData() async {
+  List<ItemData> loadData() {
     _data.clear();
+    List<AccountData> accountDataList = [];
+    var random = Random.secure();
     for (int i = 0; i < 3; i++) {
-      _data.add(AccountData()
-        ..isExpanded = false
-        ..name = tempData[Random.secure().nextInt(tempData.length)]);
+      accountDataList
+          .add(AccountData(tempData[random.nextInt(tempData.length)]));
     }
+    _data.add(GroupData(null, accountDataList)..isExpanded = false);
 
     for (int i = 0; i < 5; i++) {
-      _data.add(GroupData()
-        ..isExpanded = false
-        ..name = tempData[Random.secure().nextInt(tempData.length)]);
+      List<AccountData> accountDataList = [];
       for (int i = 0; i < 3; i++) {
-        _data.add(AccountData()
-          ..isExpanded = false
-          ..name = tempData[Random.secure().nextInt(tempData.length)]);
+        accountDataList
+            .add(AccountData(tempData[random.nextInt(tempData.length)]));
       }
+      _data.add(GroupData('分组$i', accountDataList)..isExpanded = false);
     }
     return _data;
   }
@@ -87,153 +87,105 @@ class _AccountListViewState extends State<AccountListView> {
     loadData();
   }
 
+  Widget _buildItem(List<ItemData> items, int index) {
+    ItemData item = items[index];
+    if (item.name == null || item.name.isEmpty) {
+      return null;
+    }
+    if (item is GroupData) {
+      return ListTile(
+        leading: Icon(Icons.folder_open),
+        title: Text(item.name ?? ''),
+      );
+    } else {
+      return ListTile(
+        leading: Icon(Icons.account_balance_wallet),
+        title: Text(item.name),
+      );
+    }
+  }
+
+  Widget _addDismissible(Widget child, List<ItemData> items, int index) {
+    return Dismissible(
+      key: ValueKey(child),
+      direction: DismissDirection.horizontal,
+      child: child,
+      background: Container(
+        alignment: AlignmentDirectional.centerStart,
+        color: Colors.grey,
+        padding: EdgeInsets.only(left: 24.0),
+        child: Text(
+          '编辑',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      secondaryBackground: Container(
+        alignment: AlignmentDirectional.centerEnd,
+        padding: EdgeInsets.only(right: 24.0),
+        color: Colors.red,
+        child: Text(
+          '删除',
+          textAlign: TextAlign.right,
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      confirmDismiss: (DismissDirection direction) {
+        if (DismissDirection.endToStart == direction) {
+          return Future.value(true);
+        } else {
+          return Future.value(false);
+        }
+      },
+      onDismissed: (DismissDirection direction) async {
+        var viewData = items.removeAt(index);
+        Scaffold.of(context).showSnackBar(SnackBar(
+          content: Text('删除了：$viewData'),
+        ));
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    var themeData = Theme.of(context);
     return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (BuildContext context, int index) {
-          if (_data.length <= index) {
-            return null;
+      delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
+        if (_data.length <= index) {
+          return null;
+        }
+        List<Widget> children = [];
+        var item = _buildItem(_data, index);
+        if (item != null) {
+          children.add(_addDismissible(item, _data, index));
+        }
+        List<AccountData> accounts = _data[index].accountDataList;
+        for (int i = 0; i < accounts.length; i++) {
+          item = _buildItem(accounts, i);
+          if (item != null) {
+            children.add(_addDismissible(item, accounts, i));
           }
-          var itemData = _data[index];
-          return ExpansionPanelList(
-            children: <ExpansionPanel>[
-              ExpansionPanel(
-                headerBuilder: (BuildContext context, bool isExpanded) {
-                  return Dismissible(
-                    key: ValueKey(index),
-                    direction: DismissDirection.horizontal,
-                    child: ListTile(
-                      title: Text(itemData.name),
-                    ),
-                    background: Container(
-                      color: themeData.primaryColor,
-                      child: Row(
-                        children: <Widget>[
-                          FlatButton(
-                            padding: EdgeInsets.only(right: 20.0),
-                            child: Text(
-                              '编辑',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    secondaryBackground: Container(
-                      color: Colors.red,
-                      child: Row(
-                        textDirection: TextDirection.rtl,
-                        children: <Widget>[
-                          FlatButton(
-                            padding: EdgeInsets.only(right: 20.0),
-                            child: Text(
-                              '删除',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    confirmDismiss: (DismissDirection direction) {
-                      if (DismissDirection.endToStart == direction) {
-                        return Future.value(true);
-                      } else {
-                        return Future.value(false);
-                      }
-                    },
-                    onDismissed: (DismissDirection direction) async {
-                      var viewData = _data.removeAt(index);
-                      Scaffold.of(context).showSnackBar(SnackBar(
-                        content: Text('删除了：$viewData'),
-                      ));
-                      await loadData();
-                    },
-                  );
-                },
-                body: Dismissible(
-                  key: ValueKey(index),
-                  direction: DismissDirection.horizontal,
-                  child: ListTile(
-                    title: Text(itemData.name + ':body'),
-                    subtitle:
-                        Text('To delete this panel, tap the trash can icon'),
-                  ),
-                  background: Container(
-                    color: themeData.primaryColor,
-                    child: Row(
-                      children: <Widget>[
-                        FlatButton(
-                          padding: EdgeInsets.only(right: 20.0),
-                          child: Text(
-                            '编辑',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  secondaryBackground: Container(
-                    color: Colors.red,
-                    child: Row(
-                      textDirection: TextDirection.rtl,
-                      children: <Widget>[
-                        FlatButton(
-                          padding: EdgeInsets.only(right: 20.0),
-                          child: Text(
-                            '删除',
-                            textAlign: TextAlign.right,
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  confirmDismiss: (DismissDirection direction) {
-                    if (DismissDirection.endToStart == direction) {
-                      return Future.value(true);
-                    } else {
-                      return Future.value(false);
-                    }
-                  },
-                  onDismissed: (DismissDirection direction) async {
-                    var viewData = _data.removeAt(index);
-                    Scaffold.of(context).showSnackBar(SnackBar(
-                      content: Text('删除了：$viewData'),
-                    ));
-                    await loadData();
-                  },
-                ),
-                isExpanded: itemData.isExpanded,
-              )
-            ],
-            expansionCallback: (panelIndex, isExpand) {
-              setState(() {
-                _data[index].isExpanded = !isExpand;
-              });
-            },
-          );
-        },
-      ),
+        }
+        return Card(child: Column(children: children));
+      }),
     );
   }
 }
 
 abstract class ItemData {
-  ItemData({
-    this.name,
-    this.isExpanded,
-  });
+  ItemData(this.name);
 
   String name;
-  bool isExpanded = false;
 }
 
-class GroupData extends ItemData {}
+class GroupData extends ItemData {
+  GroupData(String name, this.accountDataList) : super(name);
 
-class AccountData extends ItemData {}
+  bool isExpanded = false;
+  List<AccountData> accountDataList;
+}
+
+class AccountData extends ItemData {
+  AccountData(String name) : super(name);
+}
 
 const List<String> tempData = [
   '程勇',
